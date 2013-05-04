@@ -412,10 +412,19 @@ var exports = {
 			}
 		}
 
+		function wrappedReporter(results, data, opts) {
+			if (reporter.async) {
+				reporter(results, data, opts, safelyExit);
+			} else {
+				reporter(results, data, opts);
+				safelyExit();
+			}
+		}
+
 		var passed = exports.run({
 			args: cli.args,
 			config: config,
-			reporter: reporter,
+			reporter: wrappedReporter,
 			ignores: loadIgnores(),
 			extensions: options["extra-ext"],
 			verbose: options.verbose
@@ -425,14 +434,16 @@ var exports = {
 		// fixes issues with piped output on Windows.
 		// Root issue is here https://github.com/joyent/node/issues/3584
 		function exit() { process.exit(passed ? 0 : 2); }    
-		try {
-			if (exports.getBufferSize()) {
-				process.stdout.once('drain', exit);
-			} else {
+		function safelyExit() {
+			try {
+				if (exports.getBufferSize()) {
+					process.stdout.once('drain', exit);
+				} else {
+					exit();
+				}
+			} catch (err) {
 				exit();
 			}
-		} catch (err) {
-			exit();
 		}
 	}
 };
